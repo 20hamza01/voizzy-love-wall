@@ -1,22 +1,17 @@
+
 import { useState, useEffect } from "react";
-import { Testimonial, TestimonialStats, ProfileWithPlan, User } from "@/types";
+import { Testimonial, TestimonialStats } from "@/types";
 import { useAuth } from "./useAuth";
-import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateStats } from "@/utils/testimonialUtils";
+import { useTestimonialMutations } from "./useTestimonialMutations";
+import { useApprovedTestimonials } from "./useApprovedTestimonials";
 
 export const useTestimonials = () => {
   const { user } = useAuth();
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [stats, setStats] = useState<TestimonialStats>({ total: 0, pending: 0, approved: 0 });
   const [loading, setLoading] = useState(true);
-
-  const calculateStats = (testimonials: Testimonial[]): TestimonialStats => {
-    return {
-      total: testimonials.length,
-      pending: testimonials.filter(t => t.status === "pending").length,
-      approved: testimonials.filter(t => t.status === "approved").length
-    };
-  };
 
   const fetchTestimonials = async () => {
     try {
@@ -51,115 +46,17 @@ export const useTestimonials = () => {
     }
   }, [user]);
 
-  const createTestimonial = async (testimonial: Omit<Testimonial, "id" | "user_id" | "created_at" | "status">) => {
-    try {
-      if (!user) throw new Error("User not authenticated");
-      
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*, plan:plan_id(*)')
-        .eq('id', user.id)
-        .single<ProfileWithPlan>();
-
-      if (profileError) throw profileError;
-
-      const testimonialLimit = profile?.plan?.testimonial_limit;
-      if (testimonialLimit !== null && testimonialLimit !== undefined) {
-        const { count, error: countError } = await supabase
-          .from('testimonials')
-          .select('*', { count: 'exact' })
-          .eq('user_id', user.id);
-
-        if (countError) throw countError;
-        
-        if (count && count >= testimonialLimit) {
-          throw new Error(`Free plan is limited to ${testimonialLimit} testimonials. Please upgrade to add more.`);
-        }
-      }
-
-      const { data, error } = await supabase
-        .from('testimonials')
-        .insert([{
-          user_id: user.id,
-          status: 'pending',
-          ...testimonial
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      await fetchTestimonials();
-      toast.success("Testimonial submitted successfully");
-      return data;
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create testimonial");
-      throw error;
-    }
-  };
-
-  const updateTestimonialStatus = async (id: string, status: "approved" | "rejected") => {
-    try {
-      const { error } = await supabase
-        .from('testimonials')
-        .update({ status })
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      await fetchTestimonials();
-      toast.success(`Testimonial ${status}`);
-    } catch (error: any) {
-      console.error("Error updating testimonial:", error);
-      toast.error(error.message || "Failed to update testimonial");
-    }
-  };
-
-  const deleteTestimonial = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('testimonials')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      await fetchTestimonials();
-      toast.success("Testimonial deleted");
-    } catch (error: any) {
-      console.error("Error deleting testimonial:", error);
-      toast.error(error.message || "Failed to delete testimonial");
-    }
-  };
-
-  const getApprovedTestimonials = async (userId: string) => {
-    try {
-      console.log("Fetching approved testimonials for user:", userId);
-      const { data, error } = await supabase
-        .from('testimonials')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
-      }
-      
-      console.log("Approved testimonials:", data);
-      return data || [];
-    } catch (error: any) {
-      console.error("Error fetching approved testimonials:", error);
-      throw error;
-    }
-  };
+  const { createTestimonial, updateTestimonialStatus, deleteTestimonial } = useTestimonialMutations(fetchTestimonials);
+  const { getApprovedTestimonials } = useApprovedTestimonials();
 
   return {
     testimonials,
     stats,
     loading,
-    createTestimonial,
+    createTestimonial: (testimonial: Omit<Testimonial, "id" | "user_id" | "created_at" | "status">) => {
+      if (!user) throw new Error("User not authenticated");
+      return createTestimonial(testimonial, user.id);
+    },
     updateTestimonialStatus,
     deleteTestimonial,
     getApprovedTestimonials,
