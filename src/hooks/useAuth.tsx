@@ -30,11 +30,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
           if (profile) {
+            // Explicitly cast the plan_type to the correct union type
+            const planType = profile.plan_type as 'free' | 'basic' | 'premium';
+            
             setUser({
               id: session.user.id,
               email: session.user.email!,
               created_at: session.user.created_at,
-              plan_type: profile.plan_type,
+              plan_type: planType,
               company_name: profile.company_name,
               logo_url: profile.logo_url,
               theme_color: profile.theme_color,
@@ -59,11 +62,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single()
           .then(({ data: profile, error }) => {
             if (profile) {
+              // Explicitly cast the plan_type to the correct union type
+              const planType = profile.plan_type as 'free' | 'basic' | 'premium';
+              
               setUser({
                 id: session.user.id,
                 email: session.user.email!,
                 created_at: session.user.created_at,
-                plan_type: profile.plan_type,
+                plan_type: planType,
                 company_name: profile.company_name,
                 logo_url: profile.logo_url,
                 theme_color: profile.theme_color,
