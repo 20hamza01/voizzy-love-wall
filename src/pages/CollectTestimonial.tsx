@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +20,7 @@ export default function CollectTestimonial() {
         console.log("Fetching user profile for", userId);
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("*, plans:plan_id(*)")
+          .select("*, plan:plan_id(*)")
           .eq("id", userId)
           .single();
 
@@ -35,8 +34,8 @@ export default function CollectTestimonial() {
           setUserProfile({
             id: profile.id,
             email: profile.email,
-            created_at: new Date().toISOString(),
-            plan_type: profile.plan_type,
+            created_at: profile.created_at,
+            plan_type: profile.plan?.name?.toLowerCase() || 'free',
             company_name: profile.company_name,
             logo_url: profile.logo_url,
             theme_color: profile.theme_color,
@@ -66,25 +65,16 @@ export default function CollectTestimonial() {
       setIsSubmitting(true);
 
       // First get the user's plan
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("plan_id")
+        .select("plan:plan_id(*)")
         .eq("id", userId)
         .single();
 
       if (profileError) throw profileError;
 
-      // Get plan details
-      const { data: planData, error: planError } = await supabase
-        .from("plans")
-        .select("testimonial_limit")
-        .eq("id", profileData.plan_id)
-        .single();
-
-      if (planError) throw planError;
-
       // Check if the user has reached the testimonial limit
-      if (planData.testimonial_limit) {
+      if (profile.plan?.testimonial_limit) {
         const { count, error: countError } = await supabase
           .from("testimonials")
           .select("*", { count: 'exact' })
@@ -92,8 +82,7 @@ export default function CollectTestimonial() {
 
         if (countError) throw countError;
 
-        // Check if the user is on the free plan and has reached the limit
-        if (count && count >= planData.testimonial_limit) {
+        if (count && count >= profile.plan.testimonial_limit) {
           toast.error("This form has reached its maximum number of submissions");
           return;
         }
