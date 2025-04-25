@@ -10,25 +10,33 @@ export interface AuthSessionState {
 }
 
 export function useAuthSession(): AuthSessionState {
+  console.log('🔄 Initializing useAuthSession hook');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    console.log("Auth session initialized, setting up listeners");
+    console.log("🎭 Auth session initialized, setting up listeners");
     
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log("Auth state changed:", event);
+        console.log("🔄 Auth state changed:", event);
         
-        if (!mounted) return;
+        if (!mounted) {
+          console.log("⏹️ Component unmounted, skipping update");
+          return;
+        }
         
         if (session?.user) {
+          console.log("👤 Session exists, fetching user profile");
           // Use setTimeout to avoid potential race conditions with Supabase
           setTimeout(() => {
-            if (!mounted) return;
+            if (!mounted) {
+              console.log("⏹️ Component unmounted during timeout, skipping profile fetch");
+              return;
+            }
             
             supabase
               .from('profiles')
@@ -36,10 +44,13 @@ export function useAuthSession(): AuthSessionState {
               .eq('id', session.user.id)
               .single()
               .then(({ data: profile, error }) => {
-                if (!mounted) return;
+                if (!mounted) {
+                  console.log("⏹️ Component unmounted during profile fetch, skipping update");
+                  return;
+                }
                 
                 if (profile) {
-                  console.log("Profile fetched successfully");
+                  console.log("✅ Profile fetched successfully");
                   const planType = profile.plan_type as 'free' | 'basic' | 'premium';
                   
                   setUser({
@@ -53,7 +64,7 @@ export function useAuthSession(): AuthSessionState {
                     hide_branding: profile.hide_branding,
                   });
                 } else if (error) {
-                  console.error("Error fetching profile:", error);
+                  console.error("❌ Error fetching profile:", error);
                   toast.error("Error loading user profile");
                 }
                 
@@ -61,6 +72,7 @@ export function useAuthSession(): AuthSessionState {
               });
           }, 0);
         } else {
+          console.log("👻 No active session, clearing user state");
           setUser(null);
           setLoading(false);
         }
@@ -71,21 +83,28 @@ export function useAuthSession(): AuthSessionState {
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Initial session check:", session ? "Session exists" : "No session");
+      console.log("🔍 Initial session check:", session ? "Session exists" : "No session");
       
-      if (!mounted) return;
+      if (!mounted) {
+        console.log("⏹️ Component unmounted, skipping session check");
+        return;
+      }
       
       if (session?.user) {
+        console.log("👤 Found existing session, fetching profile");
         supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single()
           .then(({ data: profile, error }) => {
-            if (!mounted) return;
+            if (!mounted) {
+              console.log("⏹️ Component unmounted during profile fetch, skipping update");
+              return;
+            }
             
             if (profile) {
-              console.log("Initial profile loaded");
+              console.log("✅ Initial profile loaded successfully");
               const planType = profile.plan_type as 'free' | 'basic' | 'premium';
               
               setUser({
@@ -99,19 +118,21 @@ export function useAuthSession(): AuthSessionState {
                 hide_branding: profile.hide_branding,
               });
             } else if (error) {
-              console.error("Error fetching initial profile:", error);
+              console.error("❌ Error fetching initial profile:", error);
             }
             
             setLoading(false);
             setAuthInitialized(true);
           });
       } else {
+        console.log("👻 No existing session found");
         setLoading(false);
         setAuthInitialized(true);
       }
     });
 
     return () => {
+      console.log("🧹 Cleaning up auth listeners");
       mounted = false;
       subscription.unsubscribe();
     };
@@ -121,14 +142,23 @@ export function useAuthSession(): AuthSessionState {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (loading && !authInitialized) {
-        console.log("Auth timeout triggered - forcing loading to false");
+        console.warn("⚠️ Auth timeout triggered - forcing loading to false");
         setLoading(false);
         setAuthInitialized(true);
       }
     }, 5000); // 5 second safety timeout
     
-    return () => clearTimeout(timeoutId);
+    return () => {
+      console.log("🧹 Cleaning up timeout");
+      clearTimeout(timeoutId);
+    }
   }, [loading, authInitialized]);
 
+  console.log("🔄 useAuthSession state update:", { 
+    hasUser: !!user, 
+    loading, 
+    initialized: authInitialized 
+  });
+  
   return { user, loading };
 }
