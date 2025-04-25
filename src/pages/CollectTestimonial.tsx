@@ -17,23 +17,34 @@ export default function CollectTestimonial() {
     const fetchUserProfile = async () => {
       if (!userId) return;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      try {
+        console.log("Fetching user profile for", userId);
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("*, plans:plan_id(*)")
+          .eq("id", userId)
+          .single();
 
-      if (profile) {
-        setUserProfile({
-          id: profile.id,
-          email: profile.email,
-          created_at: new Date().toISOString(), // Not needed for this context
-          plan_type: profile.plan_type as 'free' | 'basic' | 'premium',
-          company_name: profile.company_name,
-          logo_url: profile.logo_url,
-          theme_color: profile.theme_color,
-          hide_branding: profile.hide_branding,
-        });
+        if (error) {
+          console.error("Error fetching profile:", error);
+          return;
+        }
+
+        if (profile) {
+          console.log("Profile data:", profile);
+          setUserProfile({
+            id: profile.id,
+            email: profile.email,
+            created_at: new Date().toISOString(),
+            plan_type: profile.plan_type,
+            company_name: profile.company_name,
+            logo_url: profile.logo_url,
+            theme_color: profile.theme_color,
+            hide_branding: profile.hide_branding,
+          });
+        }
+      } catch (error) {
+        console.error("Error in fetchUserProfile:", error);
       }
     };
 
@@ -54,19 +65,38 @@ export default function CollectTestimonial() {
     try {
       setIsSubmitting(true);
 
-      // First check if user has reached the testimonial limit
-      // We need to count existing testimonials for this user
-      const { data: existingTestimonials, count, error: countError } = await supabase
-        .from("testimonials")
-        .select("*", { count: 'exact' })
-        .eq("user_id", userId);
+      // First get the user's plan
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("plan_id")
+        .eq("id", userId)
+        .single();
 
-      if (countError) throw countError;
+      if (profileError) throw profileError;
 
-      // Check if the user is on the free plan and has reached the limit
-      if (userProfile?.plan_type === 'free' && count && count >= 3) {
-        toast.error("This form has reached its maximum number of submissions");
-        return;
+      // Get plan details
+      const { data: planData, error: planError } = await supabase
+        .from("plans")
+        .select("testimonial_limit")
+        .eq("id", profileData.plan_id)
+        .single();
+
+      if (planError) throw planError;
+
+      // Check if the user has reached the testimonial limit
+      if (planData.testimonial_limit) {
+        const { count, error: countError } = await supabase
+          .from("testimonials")
+          .select("*", { count: 'exact' })
+          .eq("user_id", userId);
+
+        if (countError) throw countError;
+
+        // Check if the user is on the free plan and has reached the limit
+        if (count && count >= planData.testimonial_limit) {
+          toast.error("This form has reached its maximum number of submissions");
+          return;
+        }
       }
 
       // Insert the testimonial
@@ -86,6 +116,7 @@ export default function CollectTestimonial() {
       toast.success("Thank you for your testimonial!");
       navigate(`/collect/${userId}/thank-you`);
     } catch (error: any) {
+      console.error("Error submitting testimonial:", error);
       toast.error(error.message || "Failed to submit testimonial");
     } finally {
       setIsSubmitting(false);

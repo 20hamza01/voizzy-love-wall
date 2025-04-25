@@ -30,6 +30,7 @@ export const useTestimonials = () => {
       const { data: testimonials, error } = await supabase
         .from('testimonials')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -68,6 +69,7 @@ export const useTestimonials = () => {
 
       if (profileError) throw profileError;
 
+      // Get the plan details
       const { data: plan, error: planError } = await supabase
         .from('plans')
         .select('testimonial_limit')
@@ -151,6 +153,7 @@ export const useTestimonials = () => {
   // Get testimonials for public display (only approved)
   const getApprovedTestimonials = async (userId: string) => {
     try {
+      console.log("Fetching approved testimonials for user:", userId);
       const { data, error } = await supabase
         .from('testimonials')
         .select('*')
@@ -158,8 +161,13 @@ export const useTestimonials = () => {
         .eq('status', 'approved')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+      
+      console.log("Approved testimonials:", data);
+      return data || [];
     } catch (error: any) {
       console.error("Error fetching approved testimonials:", error);
       throw error;
