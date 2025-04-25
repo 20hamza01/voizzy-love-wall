@@ -8,7 +8,7 @@ import { User } from "@/types";
 interface AppLayoutProps {
   user: User | null;
   loading: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const AppLayout: React.FC<AppLayoutProps> = ({ user, loading, children }) => {
@@ -18,7 +18,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ user, loading, children }) => {
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <main className="flex-1 p-6">
-            {children}
+            {/* Conditionally render either children or Outlet */}
+            {children || <Outlet />}
           </main>
         </div>
       </div>
