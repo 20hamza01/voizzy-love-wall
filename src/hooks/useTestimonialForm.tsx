@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { User, ProfileWithPlan } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 
 interface UseTestimonialFormReturn {
   userProfile: User | null;
@@ -20,6 +20,7 @@ interface UseTestimonialFormReturn {
 
 export function useTestimonialForm(userId: string | undefined): UseTestimonialFormReturn {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +37,12 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
 
       try {
         console.log("🔍 Starting profile fetch for userId:", userId);
+        console.log("🧩 Current auth state:", { 
+          isAuthenticated: !!currentUser,
+          currentUserId: currentUser?.id,
+          requestedUserId: userId,
+          isSameUser: currentUser?.id === userId
+        });
         
         // First, check if the userId exists as a valid UUID in the database
         const { count, error: checkError } = await supabase
@@ -111,7 +118,7 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
     };
 
     fetchUserProfile();
-  }, [userId]);
+  }, [userId, currentUser]);
 
   const handleSubmit = async (values: {
     client_name: string;

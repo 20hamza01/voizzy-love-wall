@@ -1,5 +1,6 @@
+
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,13 +32,24 @@ const formSchema = z.object({
 const Login = () => {
   const { signIn, user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  // Get the return path from location state or default to dashboard
+  const from = location.state?.from?.pathname || "/dashboard";
 
   React.useEffect(() => {
+    console.log("🔑 Login page - auth state:", { 
+      isAuthenticated: !!user, 
+      loading, 
+      returnPath: from 
+    });
+    
     if (user && !loading) {
-      navigate("/dashboard");
+      console.log(`🔄 Login page - User already authenticated, redirecting to ${from}`);
+      navigate(from);
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, from]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -49,10 +61,12 @@ const Login = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      console.log("🔑 Login attempt with email:", values.email);
       setIsSubmitting(true);
       await signIn(values.email, values.password);
+      console.log(`✅ Login successful, will redirect to ${from}`);
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("❌ Login failed:", error);
     } finally {
       setIsSubmitting(false);
     }

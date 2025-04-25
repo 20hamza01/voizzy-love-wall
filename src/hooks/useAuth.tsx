@@ -12,6 +12,14 @@ export const useAuth = () => {
     console.error('❌ useAuth must be used within an AuthProvider');
     throw new Error("useAuth must be used within an AuthProvider");
   }
-  console.log('✅ useAuth hook returned context successfully');
+  
+  // Log the current authentication state when the hook is used
+  const { user, loading } = context;
+  console.log('✅ useAuth hook returned context:', { 
+    isAuthenticated: !!user, 
+    userId: user?.id, 
+    loading 
+  });
+  
   return context;
 };
