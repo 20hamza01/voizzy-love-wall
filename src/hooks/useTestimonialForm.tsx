@@ -35,7 +35,7 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
       }
 
       try {
-        console.log("🔍 Fetching user profile for", userId);
+        console.log("🔍 Starting profile fetch for userId:", userId);
         
         // First, check if the userId exists as a valid UUID in the database
         const { count, error: checkError } = await supabase
@@ -58,15 +58,17 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           setIsLoading(false);
           return;
         }
-        
+
+        console.log("📥 Fetching complete profile data with plan...");
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("*, plan:plan_id(*)")
           .eq("id", userId)
-          .maybeSingle();
+          .maybeSingle<ProfileWithPlan>();
 
         if (profileError) {
           console.error("❌ Error fetching profile details:", profileError);
+          console.error("Error details:", profileError);
           setError("Unable to load the testimonial form. Please try again later.");
           setIsLoading(false);
           return;
@@ -79,17 +81,24 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           return;
         }
 
-        console.log("✅ Profile data retrieved successfully:", profile);
-        setUserProfile({
+        // Log the raw profile data for debugging
+        console.log("📦 Raw profile data received:", profile);
+        console.log("🔍 Plan data:", profile.plan);
+
+        // Transform the profile data with type safety
+        const transformedProfile: User = {
           id: profile.id,
           email: profile.email,
           created_at: profile.created_at,
-          plan_type: profile.plan?.name?.toLowerCase() || 'free',
+          plan_type: profile.plan_type || 'free',
           company_name: profile.company_name,
           logo_url: profile.logo_url,
           theme_color: profile.theme_color,
-          hide_branding: profile.hide_branding,
-        });
+          hide_branding: profile.hide_branding ?? false,
+        };
+
+        console.log("✅ Transformed profile data:", transformedProfile);
+        setUserProfile(transformedProfile);
       } catch (error) {
         console.error("💥 Unexpected error in fetchUserProfile:", error);
         setError("An unexpected error occurred. Please try again later.");
