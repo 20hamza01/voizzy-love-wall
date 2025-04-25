@@ -1,222 +1,109 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useTestimonials } from "@/hooks/useTestimonials";
-import { Star } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/sonner";
+import TestimonialForm from "@/components/TestimonialForm";
+import { User } from "@/types";
 
-const formSchema = z.object({
-  client_name: z.string().min(2, {
-    message: "Name must be at least 2 characters.",
-  }),
-  client_role: z.string().optional(),
-  rating: z.number().min(1).max(5),
-  content: z.string().min(10, {
-    message: "Testimonial must be at least 10 characters.",
-  }),
-});
-
-const CollectTestimonial = () => {
+export default function CollectTestimonial() {
   const { userId } = useParams<{ userId: string }>();
-  const { createTestimonial } = useTestimonials();
   const navigate = useNavigate();
-  const [submitting, setSubmitting] = React.useState(false);
-  const [rating, setRating] = React.useState(5);
-  const [hoveredRating, setHoveredRating] = React.useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      client_name: "",
-      client_role: "",
-      rating: 5,
-      content: "",
-    },
-  });
+  // Fetch user profile for branding
+  React.useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!userId) return;
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!userId) return;
-    
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (profile) {
+        setUserProfile({
+          id: profile.id,
+          email: profile.email,
+          created_at: new Date().toISOString(), // Not needed for this context
+          plan_type: profile.plan_type as 'free' | 'basic' | 'premium',
+          company_name: profile.company_name,
+          logo_url: profile.logo_url,
+          theme_color: profile.theme_color,
+          hide_branding: profile.hide_branding,
+        });
+      }
+    };
+
+    fetchUserProfile();
+  }, [userId]);
+
+  const handleSubmit = async (values: {
+    client_name: string;
+    client_role?: string;
+    rating: number;
+    content: string;
+  }) => {
+    if (!userId) {
+      toast.error("Invalid form URL");
+      return;
+    }
+
     try {
-      setSubmitting(true);
-      await createTestimonial({
+      setIsSubmitting(true);
+
+      // First check if user has reached the testimonial limit
+      const { data: existingTestimonials, error: countError } = await supabase
+        .from("testimonials")
+        .select("id", { count: 'exact' })
+        .eq("user_id", userId);
+
+      if (countError) throw countError;
+
+      // Check if the user is on the free plan and has reached the limit
+      if (userProfile?.plan_type === 'free' && existingTestimonials && existingTestimonials.length >= 3) {
+        toast.error("This form has reached its maximum number of submissions");
+        return;
+      }
+
+      const { error } = await supabase.from("testimonials").insert({
+        user_id: userId,
         client_name: values.client_name,
-        client_role: values.client_role || undefined,
+        client_role: values.client_role,
         rating: values.rating,
         content: values.content,
       });
+
+      if (error) throw error;
+
+      toast.success("Thank you for your testimonial!");
       navigate(`/collect/${userId}/thank-you`);
-    } catch (error) {
-      console.error("Failed to submit testimonial:", error);
-      setSubmitting(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to submit testimonial");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleRatingClick = (selected: number) => {
-    setRating(selected);
-    form.setValue("rating", selected);
-  };
-
-  // Update form when rating changes
-  React.useEffect(() => {
-    form.setValue("rating", rating);
-  }, [rating, form]);
-
-  if (!userId) {
+  if (!userProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Invalid testimonial collection URL</h1>
-          <p className="text-muted-foreground mt-2">
-            The URL you've visited doesn't include a valid user ID.
-          </p>
-        </div>
+        <div className="animate-pulse">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-voizzy-blue">Voizzy</h1>
-        </div>
-
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-center">Share Your Feedback</CardTitle>
-            <CardDescription className="text-center">
-              We appreciate your testimonial
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="client_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Your Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Smith" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="client_role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Your Role</FormLabel>
-                      <FormControl>
-                        <Input placeholder="CEO at Company" {...field} />
-                      </FormControl>
-                      <FormDescription>Optional</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="rating"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>Rating</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star
-                              key={star}
-                              size={28}
-                              className={`cursor-pointer ${
-                                (hoveredRating || rating) >= star
-                                  ? "text-yellow-400 fill-yellow-400"
-                                  : "text-gray-300"
-                              }`}
-                              onClick={() => handleRatingClick(star)}
-                              onMouseEnter={() => setHoveredRating(star)}
-                              onMouseLeave={() => setHoveredRating(0)}
-                            />
-                          ))}
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="content"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Your Testimonial</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Share your experience..."
-                          className="h-32"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={submitting}
-                >
-                  {submitting ? "Submitting..." : "Submit Testimonial"}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-          <CardFooter className="flex justify-center pt-0">
-            <p className="text-xs text-muted-foreground">
-              Powered by{" "}
-              <a
-                href="/"
-                className="text-voizzy-blue hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Voizzy
-              </a>
-            </p>
-          </CardFooter>
-        </Card>
-      </div>
+    <div className="min-h-screen bg-gray-50 py-12">
+      <TestimonialForm
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        showBranding={!userProfile.hide_branding}
+        themeColor={userProfile.theme_color || undefined}
+        logoUrl={userProfile.logo_url || undefined}
+      />
     </div>
   );
-};
-
-export default CollectTestimonial;
+}
