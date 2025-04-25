@@ -1,9 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { User, ProfileWithPlan } from "@/types";
-import { useAuth } from "@/hooks/useAuth";
 
 interface UseTestimonialFormReturn {
   userProfile: User | null;
@@ -20,7 +20,6 @@ interface UseTestimonialFormReturn {
 
 export function useTestimonialForm(userId: string | undefined): UseTestimonialFormReturn {
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,15 +35,9 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
       }
 
       try {
-        console.log("🔍 Starting profile fetch for userId:", userId);
-        console.log("🧩 Current auth state:", { 
-          isAuthenticated: !!currentUser,
-          currentUserId: currentUser?.id,
-          requestedUserId: userId,
-          isSameUser: currentUser?.id === userId
-        });
+        console.log("🔍 Checking profile for userId:", userId);
         
-        // First, check if the userId exists as a valid UUID in the database
+        // Check if the profile exists
         const { count, error: checkError } = await supabase
           .from("profiles")
           .select("*", { count: 'exact', head: true })
@@ -57,16 +50,16 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           return;
         }
 
-        console.log(`👀 Profile existence check: ${count} profile(s) found for userId: ${userId}`);
+        console.log(`👀 Profile check result: ${count} profile(s) found`);
         
         if (count === 0) {
-          console.log("⚠️ No profile found with this userId:", userId);
+          console.log("⚠️ No profile found with this userId");
           setError("This testimonial form is not available. The link may be incorrect or the account has been deleted.");
           setIsLoading(false);
           return;
         }
 
-        console.log("📥 Fetching complete profile data with plan...");
+        console.log("📥 Fetching profile data with plan details...");
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("*, plan:plan_id(*)")
@@ -75,30 +68,25 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
 
         if (profileError) {
           console.error("❌ Error fetching profile details:", profileError);
-          console.error("Error details:", profileError);
           setError("Unable to load the testimonial form. Please try again later.");
           setIsLoading(false);
           return;
         }
 
         if (!profile) {
-          console.log("⚠️ No profile details found for userId:", userId);
+          console.log("⚠️ No profile details found");
           setError("This testimonial form is not available.");
           setIsLoading(false);
           return;
         }
 
-        // Log the raw profile data for debugging
-        console.log("📦 Raw profile data received:", profile);
-        console.log("🔍 Plan data:", profile.plan);
+        console.log("✅ Profile data retrieved successfully");
 
-        // Transform the profile data with type safety
+        // Transform the profile data
         const transformedProfile: User = {
           id: profile.id,
           email: profile.email,
           created_at: profile.created_at,
-          // Since plan_type is in the database schema for profiles but not in our TypeScript type,
-          // we need to handle it as a direct property with type assertion
           plan_type: (profile as any).plan_type as 'free' | 'basic' | 'premium',
           company_name: profile.company_name,
           logo_url: profile.logo_url,
@@ -106,19 +94,17 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           hide_branding: profile.hide_branding ?? false,
         };
 
-        console.log("✅ Transformed profile data:", transformedProfile);
         setUserProfile(transformedProfile);
       } catch (error) {
-        console.error("💥 Unexpected error in fetchUserProfile:", error);
+        console.error("💥 Unexpected error:", error);
         setError("An unexpected error occurred. Please try again later.");
       } finally {
-        console.log("🏁 Profile fetch operation completed");
         setIsLoading(false);
       }
     };
 
     fetchUserProfile();
-  }, [userId, currentUser]);
+  }, [userId]);
 
   const handleSubmit = async (values: {
     client_name: string;
@@ -133,7 +119,7 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
     }
 
     try {
-      console.log("🔄 Starting testimonial submission process");
+      console.log("🔄 Starting testimonial submission");
       setIsSubmitting(true);
 
       const { data: profile, error: profileError } = await supabase
@@ -152,6 +138,7 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
         throw new Error("Unable to submit testimonial - invalid form");
       }
 
+      // Check testimonial limit
       const testimonialLimit = profile?.plan?.testimonial_limit;
       if (testimonialLimit !== null && testimonialLimit !== undefined) {
         console.log("🔍 Checking testimonial limit:", testimonialLimit);
