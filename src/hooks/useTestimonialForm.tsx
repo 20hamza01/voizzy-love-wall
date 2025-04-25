@@ -36,6 +36,29 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
 
       try {
         console.log("🔍 Fetching user profile for", userId);
+        
+        // First, check if the userId exists as a valid UUID in the database
+        const { count, error: checkError } = await supabase
+          .from("profiles")
+          .select("*", { count: 'exact', head: true })
+          .eq("id", userId);
+
+        if (checkError) {
+          console.error("❌ Error checking if profile exists:", checkError);
+          setError("Unable to load the testimonial form. Please try again later.");
+          setIsLoading(false);
+          return;
+        }
+
+        console.log(`👀 Profile existence check: ${count} profile(s) found for userId: ${userId}`);
+        
+        if (count === 0) {
+          console.log("⚠️ No profile found with this userId:", userId);
+          setError("This testimonial form is not available. The link may be incorrect or the account has been deleted.");
+          setIsLoading(false);
+          return;
+        }
+        
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("*, plan:plan_id(*)")
@@ -43,14 +66,14 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           .maybeSingle();
 
         if (profileError) {
-          console.error("❌ Error fetching profile:", profileError);
+          console.error("❌ Error fetching profile details:", profileError);
           setError("Unable to load the testimonial form. Please try again later.");
           setIsLoading(false);
           return;
         }
 
         if (!profile) {
-          console.log("⚠️ No profile found for userId:", userId);
+          console.log("⚠️ No profile details found for userId:", userId);
           setError("This testimonial form is not available.");
           setIsLoading(false);
           return;
