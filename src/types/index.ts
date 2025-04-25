@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -24,7 +23,6 @@ export interface Testimonial {
   updated_at: string;
 }
 
-// Add the Plan interface
 export interface Plan {
   id: string;
   name: string;
@@ -36,7 +34,17 @@ export interface Plan {
   hide_branding: boolean;
 }
 
-// Add the TestimonialStats interface
+export interface ProfileWithPlan {
+  id: string;
+  email: string;
+  plan: Plan | null;
+  created_at: string;
+  company_name: string | null;
+  logo_url: string | null;
+  theme_color: string | null;
+  hide_branding: boolean | null;
+}
+
 export interface TestimonialStats {
   total: number;
   pending: number;

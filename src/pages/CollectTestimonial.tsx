@@ -1,10 +1,9 @@
-
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import TestimonialForm from "@/components/TestimonialForm";
-import { User } from "@/types";
+import { User, ProfileWithPlan } from "@/types";
 
 export default function CollectTestimonial() {
   const { userId } = useParams<{ userId: string }>();
@@ -12,7 +11,6 @@ export default function CollectTestimonial() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
 
-  // Fetch user profile for branding
   React.useEffect(() => {
     const fetchUserProfile = async () => {
       if (!userId) return;
@@ -65,33 +63,29 @@ export default function CollectTestimonial() {
     try {
       setIsSubmitting(true);
 
-      // First get the user's plan
       const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("plan:plan_id(*)")
-        .eq("id", userId)
-        .single();
+        .from('profiles')
+        .select('*, plan:plan_id(*)')
+        .eq('id', userId)
+        .single<ProfileWithPlan>();
 
       if (profileError) throw profileError;
 
-      // Check if the user has reached the testimonial limit
-      // The plan object is an actual object, not an array
-      const plan = profile.plan;
-      if (plan && plan.testimonial_limit) {
+      const testimonialLimit = profile?.plan?.testimonial_limit;
+      if (testimonialLimit !== null && testimonialLimit !== undefined) {
         const { count, error: countError } = await supabase
-          .from("testimonials")
-          .select("*", { count: 'exact' })
-          .eq("user_id", userId);
+          .from('testimonials')
+          .select('*', { count: 'exact' })
+          .eq('user_id', userId);
 
         if (countError) throw countError;
 
-        if (count && count >= plan.testimonial_limit) {
+        if (count && count >= testimonialLimit) {
           toast.error("This form has reached its maximum number of submissions");
           return;
         }
       }
 
-      // Insert the testimonial
       const { error } = await supabase
         .from("testimonials")
         .insert({

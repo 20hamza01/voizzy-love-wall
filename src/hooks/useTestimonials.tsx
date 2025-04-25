@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { Testimonial, TestimonialStats, User } from "@/types";
+import { Testimonial, TestimonialStats, ProfileWithPlan, User } from "@/types";
 import { useAuth } from "./useAuth";
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +10,6 @@ export const useTestimonials = () => {
   const [stats, setStats] = useState<TestimonialStats>({ total: 0, pending: 0, approved: 0 });
   const [loading, setLoading] = useState(true);
 
-  // Calculate testimonial stats
   const calculateStats = (testimonials: Testimonial[]): TestimonialStats => {
     return {
       total: testimonials.length,
@@ -20,7 +18,6 @@ export const useTestimonials = () => {
     };
   };
 
-  // Fetch testimonials from Supabase
   const fetchTestimonials = async () => {
     try {
       setLoading(true);
@@ -45,7 +42,6 @@ export const useTestimonials = () => {
     }
   };
 
-  // Initialize testimonials when user changes
   useEffect(() => {
     if (user) {
       fetchTestimonials();
@@ -55,24 +51,20 @@ export const useTestimonials = () => {
     }
   }, [user]);
 
-  // Create a new testimonial
   const createTestimonial = async (testimonial: Omit<Testimonial, "id" | "user_id" | "created_at" | "status">) => {
     try {
       if (!user) throw new Error("User not authenticated");
       
-      // Get user's plan details
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('plan_id, plan:plan_id(*)')
+        .select('*, plan:plan_id(*)')
         .eq('id', user.id)
-        .single();
+        .single<ProfileWithPlan>();
 
       if (profileError) throw profileError;
 
-      // Check testimonial limit for free plan
-      // The plan object is an actual object, not an array
-      const plan = profile.plan;
-      if (plan && plan.testimonial_limit) {
+      const testimonialLimit = profile?.plan?.testimonial_limit;
+      if (testimonialLimit !== null && testimonialLimit !== undefined) {
         const { count, error: countError } = await supabase
           .from('testimonials')
           .select('*', { count: 'exact' })
@@ -80,8 +72,8 @@ export const useTestimonials = () => {
 
         if (countError) throw countError;
         
-        if (count && count >= plan.testimonial_limit) {
-          throw new Error(`Free plan is limited to ${plan.testimonial_limit} testimonials. Please upgrade to add more.`);
+        if (count && count >= testimonialLimit) {
+          throw new Error(`Free plan is limited to ${testimonialLimit} testimonials. Please upgrade to add more.`);
         }
       }
 
@@ -106,7 +98,6 @@ export const useTestimonials = () => {
     }
   };
 
-  // Update testimonial status
   const updateTestimonialStatus = async (id: string, status: "approved" | "rejected") => {
     try {
       const { error } = await supabase
@@ -124,7 +115,6 @@ export const useTestimonials = () => {
     }
   };
 
-  // Delete testimonial
   const deleteTestimonial = async (id: string) => {
     try {
       const { error } = await supabase
@@ -142,7 +132,6 @@ export const useTestimonials = () => {
     }
   };
 
-  // Get testimonials for public display (only approved)
   const getApprovedTestimonials = async (userId: string) => {
     try {
       console.log("Fetching approved testimonials for user:", userId);
