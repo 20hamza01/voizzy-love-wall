@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   Card,
@@ -45,7 +44,6 @@ const Settings = () => {
     },
   });
 
-  // Update form when user changes
   React.useEffect(() => {
     if (user) {
       form.reset({
@@ -58,10 +56,8 @@ const Settings = () => {
   const onSubmit = async (values: z.infer<typeof profileFormSchema>) => {
     try {
       setIsUpdating(true);
-      // In a real app, this would call an API to update the user's profile
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Update local storage with new profile info
       if (user) {
         const updatedUser = {
           ...user,
@@ -235,7 +231,7 @@ const Settings = () => {
                             plan.id === currentPlan?.id ? "outline" : "default"
                           }
                           disabled={plan.id === currentPlan?.id}
-                          onClick={() => upgradePlan(plan.id)}
+                          onClick={() => upgradePlan(plan.id as "free" | "basic" | "premium")}
                         >
                           {plan.id === currentPlan?.id
                             ? "Current Plan"
