@@ -90,7 +90,9 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           id: profile.id,
           email: profile.email,
           created_at: profile.created_at,
-          plan_type: profile.plan_type || 'free',
+          // Access the plan_type from the profile object directly since it exists there
+          // according to the database schema, not through the plan relationship
+          plan_type: profile.plan_type as 'free' | 'basic' | 'premium',
           company_name: profile.company_name,
           logo_url: profile.logo_url,
           theme_color: profile.theme_color,
