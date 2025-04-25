@@ -28,33 +28,35 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!userId) {
+        console.log('❌ Invalid form URL - no userId provided');
         setError("Invalid form URL");
         setIsLoading(false);
         return;
       }
 
       try {
-        console.log("Fetching user profile for", userId);
+        console.log("🔍 Fetching user profile for", userId);
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("*, plan:plan_id(*)")
           .eq("id", userId)
-          .single();
+          .maybeSingle();
 
         if (profileError) {
-          console.error("Error fetching profile:", profileError);
+          console.error("❌ Error fetching profile:", profileError);
           setError("Unable to load the testimonial form. Please try again later.");
           setIsLoading(false);
           return;
         }
 
         if (!profile) {
-          setError("This testimonial form does not exist.");
+          console.log("⚠️ No profile found for userId:", userId);
+          setError("This testimonial form is not available.");
           setIsLoading(false);
           return;
         }
 
-        console.log("Profile data:", profile);
+        console.log("✅ Profile data retrieved successfully:", profile);
         setUserProfile({
           id: profile.id,
           email: profile.email,
@@ -66,9 +68,10 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           hide_branding: profile.hide_branding,
         });
       } catch (error) {
-        console.error("Error in fetchUserProfile:", error);
+        console.error("💥 Unexpected error in fetchUserProfile:", error);
         setError("An unexpected error occurred. Please try again later.");
       } finally {
+        console.log("🏁 Profile fetch operation completed");
         setIsLoading(false);
       }
     };
@@ -83,36 +86,52 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
     content: string;
   }) => {
     if (!userId) {
+      console.log("❌ Submit failed: Invalid form URL - no userId");
       toast.error("Invalid form URL");
       return;
     }
 
     try {
+      console.log("🔄 Starting testimonial submission process");
       setIsSubmitting(true);
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*, plan:plan_id(*)')
         .eq('id', userId)
-        .single<ProfileWithPlan>();
+        .maybeSingle<ProfileWithPlan>();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error("❌ Error checking profile:", profileError);
+        throw new Error("Failed to verify testimonial submission permissions");
+      }
+
+      if (!profile) {
+        console.error("❌ No profile found during submission");
+        throw new Error("Unable to submit testimonial - invalid form");
+      }
 
       const testimonialLimit = profile?.plan?.testimonial_limit;
       if (testimonialLimit !== null && testimonialLimit !== undefined) {
+        console.log("🔍 Checking testimonial limit:", testimonialLimit);
         const { count, error: countError } = await supabase
           .from('testimonials')
           .select('*', { count: 'exact' })
           .eq('user_id', userId);
 
-        if (countError) throw countError;
+        if (countError) {
+          console.error("❌ Error checking testimonial count:", countError);
+          throw countError;
+        }
         
         if (count && count >= testimonialLimit) {
+          console.log("⚠️ Testimonial limit reached:", count, "/", testimonialLimit);
           toast.error("This form has reached its maximum number of submissions");
           return;
         }
       }
 
+      console.log("📝 Submitting new testimonial");
       const { error } = await supabase
         .from("testimonials")
         .insert({
@@ -124,14 +143,19 @@ export function useTestimonialForm(userId: string | undefined): UseTestimonialFo
           status: 'pending'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Error submitting testimonial:", error);
+        throw error;
+      }
 
+      console.log("✅ Testimonial submitted successfully");
       toast.success("Thank you for your testimonial!");
       navigate(`/collect/${userId}/thank-you`);
     } catch (error: any) {
-      console.error("Error submitting testimonial:", error);
+      console.error("💥 Error in handleSubmit:", error);
       toast.error(error.message || "Failed to submit testimonial");
     } finally {
+      console.log("🏁 Submission process completed");
       setIsSubmitting(false);
     }
   };
