@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePlans } from "@/hooks/usePlans";
 import { Link } from "react-router-dom";
 import { BarChart, Share2, Star } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const Dashboard = () => {
