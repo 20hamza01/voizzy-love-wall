@@ -1,44 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Testimonial, TestimonialStats, User } from "@/types";
 import { useAuth } from "./useAuth";
 import { toast } from "@/components/ui/sonner";
-
-// Sample data - will be replaced with Supabase
-const mockTestimonials: Testimonial[] = [
-  {
-    id: "1",
-    user_id: "1",
-    client_name: "Alex Johnson",
-    client_role: "Marketing Director",
-    rating: 5,
-    content: "Voizzy has transformed how we collect customer feedback. The interface is intuitive and our customers love the simple process.",
-    status: "approved",
-    created_at: "2025-04-20T12:00:00Z",
-    updated_at: "2025-04-20T12:00:00Z"
-  },
-  {
-    id: "2",
-    user_id: "1",
-    client_name: "Sarah Miller",
-    client_role: "CEO",
-    rating: 4,
-    content: "Great tool for testimonial collection. Would recommend to any business looking to showcase their customer feedback.",
-    status: "pending",
-    created_at: "2025-04-22T14:30:00Z",
-    updated_at: "2025-04-22T14:30:00Z"
-  },
-  {
-    id: "3",
-    user_id: "1",
-    client_name: "Michael Chang",
-    client_role: "Product Manager",
-    rating: 5,
-    content: "The wall of love widget looks fantastic on our site. Our conversion rate has improved since adding it!",
-    status: "pending",
-    created_at: "2025-04-23T09:15:00Z",
-    updated_at: "2025-04-23T09:15:00Z"
-  }
-];
+import { supabase } from "@/integrations/supabase/client";
 
 export const useTestimonials = () => {
   const { user } = useAuth();
@@ -55,22 +20,25 @@ export const useTestimonials = () => {
     };
   };
 
-  // Fetch testimonials (mock implementation)
+  // Fetch testimonials from Supabase
   const fetchTestimonials = async () => {
     try {
       setLoading(true);
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
       
       if (!user) return;
       
-      // Filter testimonials by user_id
-      const userTestimonials = mockTestimonials.filter(t => t.user_id === user.id);
-      setTestimonials(userTestimonials);
-      setStats(calculateStats(userTestimonials));
-    } catch (error) {
+      const { data: testimonials, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      setTestimonials(testimonials);
+      setStats(calculateStats(testimonials));
+    } catch (error: any) {
       console.error("Error fetching testimonials:", error);
-      toast.error("Failed to load testimonials");
+      toast.error(error.message || "Failed to load testimonials");
     } finally {
       setLoading(false);
     }
@@ -92,23 +60,52 @@ export const useTestimonials = () => {
       if (!user) throw new Error("User not authenticated");
       
       // Check plan limits
-      if (user.plan_type === "free" && testimonials.length >= 3) {
-        throw new Error("Free plan is limited to 3 testimonials. Please upgrade to add more.");
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('plan_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const { data: plan, error: planError } = await supabase
+        .from('plans')
+        .select('testimonial_limit')
+        .eq('id', userProfile.plan_id)
+        .single();
+
+      if (planError) throw planError;
+
+      // Check testimonial limit for free plan
+      if (plan?.testimonial_limit) {
+        const { count, error: countError } = await supabase
+          .from('testimonials')
+          .select('*', { count: 'exact' })
+          .eq('user_id', user.id);
+
+        if (countError) throw countError;
+        
+        if (count && count >= plan.testimonial_limit) {
+          throw new Error(`Free plan is limited to ${plan.testimonial_limit} testimonials. Please upgrade to add more.`);
+        }
       }
 
-      const newTestimonial: Testimonial = {
-        id: Math.random().toString(36).substring(2, 9),
-        user_id: user.id,
-        created_at: new Date().toISOString(),
-        status: "pending",
-        ...testimonial
-      };
+      // Insert new testimonial
+      const { data, error } = await supabase
+        .from('testimonials')
+        .insert([{
+          user_id: user.id,
+          status: 'pending',
+          ...testimonial
+        }])
+        .select()
+        .single();
 
-      mockTestimonials.push(newTestimonial);
+      if (error) throw error;
       
       await fetchTestimonials();
       toast.success("Testimonial submitted successfully");
-      return newTestimonial;
+      return data;
     } catch (error: any) {
       toast.error(error.message || "Failed to create testimonial");
       throw error;
@@ -118,41 +115,55 @@ export const useTestimonials = () => {
   // Update testimonial status
   const updateTestimonialStatus = async (id: string, status: "approved" | "rejected") => {
     try {
-      const index = mockTestimonials.findIndex(t => t.id === id);
-      if (index === -1) throw new Error("Testimonial not found");
-      
-      mockTestimonials[index] = {
-        ...mockTestimonials[index],
-        status
-      };
+      const { error } = await supabase
+        .from('testimonials')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
       
       await fetchTestimonials();
       toast.success(`Testimonial ${status}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating testimonial:", error);
-      toast.error("Failed to update testimonial");
+      toast.error(error.message || "Failed to update testimonial");
     }
   };
 
   // Delete testimonial
   const deleteTestimonial = async (id: string) => {
     try {
-      const index = mockTestimonials.findIndex(t => t.id === id);
-      if (index === -1) throw new Error("Testimonial not found");
+      const { error } = await supabase
+        .from('testimonials')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
       
-      mockTestimonials.splice(index, 1);
       await fetchTestimonials();
       toast.success("Testimonial deleted");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting testimonial:", error);
-      toast.error("Failed to delete testimonial");
+      toast.error(error.message || "Failed to delete testimonial");
     }
   };
 
   // Get testimonials for public display (only approved)
-  const getApprovedTestimonials = (userId: string) => {
-    return mockTestimonials
-      .filter(t => t.user_id === userId && t.status === "approved");
+  const getApprovedTestimonials = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error("Error fetching approved testimonials:", error);
+      throw error;
+    }
   };
 
   return {
