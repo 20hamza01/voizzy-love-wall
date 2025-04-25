@@ -2,8 +2,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -15,18 +13,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-
-const formSchema = z.object({
-  client_name: z.string().min(2, "Name must be at least 2 characters"),
-  client_role: z.string().optional(),
-  rating: z.number().min(1).max(5),
-  content: z.string()
-    .min(10, "Testimonial must be at least 10 characters")
-    .max(1000, "Testimonial cannot exceed 1000 characters"),
-});
+import RatingSelector from "./testimonials/RatingSelector";
+import { testimonialFormSchema, TestimonialFormData } from "./testimonials/schemas/testimonialFormSchema";
 
 type TestimonialFormProps = {
-  onSubmit: (values: z.infer<typeof formSchema>) => Promise<void>;
+  onSubmit: (values: TestimonialFormData) => Promise<void>;
   isSubmitting: boolean;
   showBranding?: boolean;
   themeColor?: string;
@@ -42,8 +33,8 @@ const TestimonialForm = ({
 }: TestimonialFormProps) => {
   const [selectedRating, setSelectedRating] = React.useState(0);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<TestimonialFormData>({
+    resolver: zodResolver(testimonialFormSchema),
     defaultValues: {
       client_name: "",
       client_role: "",
@@ -52,7 +43,7 @@ const TestimonialForm = ({
     },
   });
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (values: TestimonialFormData) => {
     await onSubmit(values);
     form.reset();
     setSelectedRating(0);
@@ -105,38 +96,10 @@ const TestimonialForm = ({
             )}
           />
 
-          <FormField
+          <RatingSelector
             control={form.control}
-            name="rating"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Rating</FormLabel>
-                <FormControl>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((rating) => (
-                      <button
-                        key={rating}
-                        type="button"
-                        className="focus:outline-none"
-                        onClick={() => {
-                          setSelectedRating(rating);
-                          field.onChange(rating);
-                        }}
-                      >
-                        <Star
-                          className={`w-8 h-8 ${
-                            rating <= selectedRating
-                              ? "fill-yellow-400 text-yellow-400"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            selectedRating={selectedRating}
+            setSelectedRating={setSelectedRating}
           />
 
           <FormField
