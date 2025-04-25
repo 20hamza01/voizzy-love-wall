@@ -55,26 +55,28 @@ export default function CollectTestimonial() {
       setIsSubmitting(true);
 
       // First check if user has reached the testimonial limit
-      const { data: existingTestimonials, error: countError } = await supabase
-        .from("testimonials")
-        .select("id", { count: 'exact' })
-        .eq("user_id", userId);
+      const { count: testimonialCount, error: countError } = await supabase
+        .from("profiles")
+        .select("*", { count: 'exact' })
+        .eq("id", userId);
 
       if (countError) throw countError;
 
       // Check if the user is on the free plan and has reached the limit
-      if (userProfile?.plan_type === 'free' && existingTestimonials && existingTestimonials.length >= 3) {
+      if (userProfile?.plan_type === 'free' && testimonialCount && testimonialCount >= 3) {
         toast.error("This form has reached its maximum number of submissions");
         return;
       }
 
-      const { error } = await supabase.from("testimonials").insert({
-        user_id: userId,
-        client_name: values.client_name,
-        client_role: values.client_role,
-        rating: values.rating,
-        content: values.content,
-      });
+      const { error } = await supabase
+        .from("testimonials")
+        .insert({
+          user_id: userId,
+          client_name: values.client_name,
+          client_role: values.client_role,
+          rating: values.rating,
+          content: values.content,
+        });
 
       if (error) throw error;
 

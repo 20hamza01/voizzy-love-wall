@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -21,4 +22,23 @@ export interface Testimonial {
   status: TestimonialStatus;
   created_at: string;
   updated_at: string;
+}
+
+// Add the Plan interface
+export interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  description: string;
+  features: string[];
+  testimonial_limit: number | null;
+  customization: boolean;
+  hide_branding: boolean;
+}
+
+// Add the TestimonialStats interface
+export interface TestimonialStats {
+  total: number;
+  pending: number;
+  approved: number;
 }

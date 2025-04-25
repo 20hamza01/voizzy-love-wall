@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Testimonial, TestimonialStats, User } from "@/types";
 import { useAuth } from "./useAuth";
@@ -14,7 +13,8 @@ const mockTestimonials: Testimonial[] = [
     rating: 5,
     content: "Voizzy has transformed how we collect customer feedback. The interface is intuitive and our customers love the simple process.",
     status: "approved",
-    created_at: "2025-04-20T12:00:00Z"
+    created_at: "2025-04-20T12:00:00Z",
+    updated_at: "2025-04-20T12:00:00Z"
   },
   {
     id: "2",
@@ -24,7 +24,8 @@ const mockTestimonials: Testimonial[] = [
     rating: 4,
     content: "Great tool for testimonial collection. Would recommend to any business looking to showcase their customer feedback.",
     status: "pending",
-    created_at: "2025-04-22T14:30:00Z"
+    created_at: "2025-04-22T14:30:00Z",
+    updated_at: "2025-04-22T14:30:00Z"
   },
   {
     id: "3",
@@ -34,7 +35,8 @@ const mockTestimonials: Testimonial[] = [
     rating: 5,
     content: "The wall of love widget looks fantastic on our site. Our conversion rate has improved since adding it!",
     status: "pending",
-    created_at: "2025-04-23T09:15:00Z"
+    created_at: "2025-04-23T09:15:00Z",
+    updated_at: "2025-04-23T09:15:00Z"
   }
 ];
 
