@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Testimonial, TestimonialStats } from "@/types";
 import { useAuth } from "./useAuth";
@@ -6,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculateStats } from "@/utils/testimonialUtils";
 import { useTestimonialMutations } from "./useTestimonialMutations";
 import { useApprovedTestimonials } from "./useApprovedTestimonials";
+import { toast } from "@/components/ui/sonner";
 
 export const useTestimonials = () => {
   const { user } = useAuth();
