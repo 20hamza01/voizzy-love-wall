@@ -1,7 +1,9 @@
+
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import TestimonialForm from "@/components/TestimonialForm";
 import { User, ProfileWithPlan } from "@/types";
 
@@ -10,39 +12,54 @@ export default function CollectTestimonial() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   React.useEffect(() => {
     const fetchUserProfile = async () => {
-      if (!userId) return;
+      if (!userId) {
+        setError("Invalid form URL");
+        setIsLoading(false);
+        return;
+      }
 
       try {
         console.log("Fetching user profile for", userId);
-        const { data: profile, error } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("*, plan:plan_id(*)")
           .eq("id", userId)
           .single();
 
-        if (error) {
-          console.error("Error fetching profile:", error);
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          setError("Unable to load the testimonial form. Please try again later.");
+          setIsLoading(false);
           return;
         }
 
-        if (profile) {
-          console.log("Profile data:", profile);
-          setUserProfile({
-            id: profile.id,
-            email: profile.email,
-            created_at: profile.created_at,
-            plan_type: profile.plan?.name?.toLowerCase() || 'free',
-            company_name: profile.company_name,
-            logo_url: profile.logo_url,
-            theme_color: profile.theme_color,
-            hide_branding: profile.hide_branding,
-          });
+        if (!profile) {
+          setError("This testimonial form does not exist.");
+          setIsLoading(false);
+          return;
         }
+
+        console.log("Profile data:", profile);
+        setUserProfile({
+          id: profile.id,
+          email: profile.email,
+          created_at: profile.created_at,
+          plan_type: profile.plan?.name?.toLowerCase() || 'free',
+          company_name: profile.company_name,
+          logo_url: profile.logo_url,
+          theme_color: profile.theme_color,
+          hide_branding: profile.hide_branding,
+        });
       } catch (error) {
         console.error("Error in fetchUserProfile:", error);
+        setError("An unexpected error occurred. Please try again later.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -79,7 +96,7 @@ export default function CollectTestimonial() {
           .eq('user_id', userId);
 
         if (countError) throw countError;
-
+        
         if (count && count >= testimonialLimit) {
           toast.error("This form has reached its maximum number of submissions");
           return;
@@ -109,10 +126,32 @@ export default function CollectTestimonial() {
     }
   };
 
-  if (!userProfile) {
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>Unable to load the testimonial form.</AlertDescription>
+        </Alert>
       </div>
     );
   }

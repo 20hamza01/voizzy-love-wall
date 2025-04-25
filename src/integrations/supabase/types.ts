@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      plans: {
+        Row: {
+          customization: boolean
+          description: string
+          features: string[]
+          hide_branding: boolean
+          id: string
+          name: string
+          price: number
+          testimonial_limit: number | null
+        }
+        Insert: {
+          customization?: boolean
+          description: string
+          features?: string[]
+          hide_branding?: boolean
+          id?: string
+          name: string
+          price: number
+          testimonial_limit?: number | null
+        }
+        Update: {
+          customization?: boolean
+          description?: string
+          features?: string[]
+          hide_branding?: boolean
+          id?: string
+          name?: string
+          price?: number
+          testimonial_limit?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           company_name: string | null
@@ -17,6 +50,7 @@ export type Database = {
           hide_branding: boolean | null
           id: string
           logo_url: string | null
+          plan_id: string | null
           plan_type: string
           theme_color: string | null
         }
@@ -27,6 +61,7 @@ export type Database = {
           hide_branding?: boolean | null
           id: string
           logo_url?: string | null
+          plan_id?: string | null
           plan_type?: string
           theme_color?: string | null
         }
@@ -37,10 +72,63 @@ export type Database = {
           hide_branding?: boolean | null
           id?: string
           logo_url?: string | null
+          plan_id?: string | null
           plan_type?: string
           theme_color?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      testimonials: {
+        Row: {
+          client_name: string
+          client_role: string | null
+          content: string
+          created_at: string
+          id: string
+          rating: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_name: string
+          client_role?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          rating: number
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_name?: string
+          client_role?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testimonials_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
