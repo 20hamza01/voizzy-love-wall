@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Testimonial, TestimonialStats, User } from "@/types";
 import { useAuth } from "./useAuth";
@@ -62,14 +63,16 @@ export const useTestimonials = () => {
       // Get user's plan details
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('plan:plan_id(*)')
+        .select('plan_id, plan:plan_id(*)')
         .eq('id', user.id)
         .single();
 
       if (profileError) throw profileError;
 
       // Check testimonial limit for free plan
-      if (profile.plan?.testimonial_limit) {
+      // The plan object is an actual object, not an array
+      const plan = profile.plan;
+      if (plan && plan.testimonial_limit) {
         const { count, error: countError } = await supabase
           .from('testimonials')
           .select('*', { count: 'exact' })
@@ -77,8 +80,8 @@ export const useTestimonials = () => {
 
         if (countError) throw countError;
         
-        if (count && count >= profile.plan.testimonial_limit) {
-          throw new Error(`Free plan is limited to ${profile.plan.testimonial_limit} testimonials. Please upgrade to add more.`);
+        if (count && count >= plan.testimonial_limit) {
+          throw new Error(`Free plan is limited to ${plan.testimonial_limit} testimonials. Please upgrade to add more.`);
         }
       }
 

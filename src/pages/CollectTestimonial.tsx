@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,7 +75,9 @@ export default function CollectTestimonial() {
       if (profileError) throw profileError;
 
       // Check if the user has reached the testimonial limit
-      if (profile.plan?.testimonial_limit) {
+      // The plan object is an actual object, not an array
+      const plan = profile.plan;
+      if (plan && plan.testimonial_limit) {
         const { count, error: countError } = await supabase
           .from("testimonials")
           .select("*", { count: 'exact' })
@@ -82,7 +85,7 @@ export default function CollectTestimonial() {
 
         if (countError) throw countError;
 
-        if (count && count >= profile.plan.testimonial_limit) {
+        if (count && count >= plan.testimonial_limit) {
           toast.error("This form has reached its maximum number of submissions");
           return;
         }
