@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -61,7 +60,6 @@ const Signup = () => {
     try {
       setIsSubmitting(true);
       await signUp(values.email, values.password, values.companyName);
-      navigate("/dashboard");
     } catch (error) {
       console.error("Signup failed:", error);
     } finally {
