@@ -14,9 +14,18 @@ const EmbedWidget = () => {
   useEffect(() => {
     if (userId) {
       // Get approved testimonials for this user
-      const approved = getApprovedTestimonials(userId);
-      setTestimonials(approved);
-      setLoading(false);
+      const fetchTestimonials = async () => {
+        try {
+          const approvedTestimonials = await getApprovedTestimonials(userId);
+          setTestimonials(approvedTestimonials);
+        } catch (error) {
+          console.error("Error fetching testimonials:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchTestimonials();
     }
   }, [userId, getApprovedTestimonials]);
 
